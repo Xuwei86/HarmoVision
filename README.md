@@ -17,7 +17,7 @@ HarmoVision leverages cutting-edge techniques in convolutional neural networks a
 
 
 ## Pre-trained Weights
-The pre-trained weights are located in the 'HarmoVision model weight files/' directory. These weights were obtained after extensive training and validation on benchmark datasets.
+Due to the large size of the weight file, it has not been released further. Please contact xuwei21@lzu.edu.cn if you need it
 
 ## Contributing
 Contributions are welcome! Please fork the repository and submit a pull request with your improvements or suggestions.
