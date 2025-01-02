@@ -1,0 +1,232 @@
+taskname: '+ MoConv2 SSD'
+common:
+  run_label: "train"
+  accum_freq: 1
+  accum_after_epoch: -1
+  log_freq: 500
+  auto_resume: true
+  mixed_precision: true
+dataset:
+  root_train: "/home/xuwei/Project/PyTorch/Important_projects/classification/imagenet_v1/COCO"
+  root_val: "/home/xuwei/Project/PyTorch/Important_projects/classification/imagenet_v1/COCO"  #"/mnt/vision_datasets/coco"
+  name: "coco_ssd"
+  category: "detection"
+  train_batch_size0: 64   # effective batch size is 128 (32 * 4 GPUs)
+  val_batch_size0: 64
+  eval_batch_size0: 1
+  workers: 8
+  persistent_workers: false
+  pin_memory: true
+image_augmentation:
+  resize:
+    enable: true
+    size: [320, 320]
+    interpolation: "bicubic"
+sampler:
+  name: "batch_sampler"
+  bs:
+    crop_size_width: 320
+    crop_size_height: 320
+loss:
+  category: "detection"
+  detection:
+    name: "ssd_multibox_loss"
+    ssd_multibox_loss:
+      neg_pos_ratio: 3
+optim:
+  name: "adamw"
+  weight_decay: 0.01
+  no_decay_bn_filter_bias: false
+  adamw:
+    beta1: 0.9
+    beta2: 0.999
+scheduler:
+  name: "cosine"
+  is_iteration_based: false
+  max_epochs: 200
+  warmup_iterations: 500
+  warmup_init_lr: 0.00009
+  cosine:
+    max_lr: 0.001  #0.0009      # s 0.001
+    min_lr: 1.5e-5   #1.0e-6     # s 1.2e-5
+anchor_generator:
+  name: "ssd"
+  ssd:
+    output_strides: [ 16, 32, 64, 128, 256, -1 ]
+    aspect_ratios: [ [ 2, 3 ], [ 2, 3 ], [ 2, 3 ], [ 2, 3 ], [ 2, 3 ], [2] ]
+    min_scale_ratio: 0.1
+    max_scale_ratio: 1.05
+matcher:
+  name: "ssd"
+  ssd:
+    center_variance: 0.1             #0.1
+    size_variance: 0.2               #0.2
+    iou_threshold: 0.5               #0.5
+model:
+  detection:
+    name: "ssd"
+    ssd:
+      proj_channels: [512, 256, 256, 128, 128, 64]
+      nms_iou_threshold: 0.5                       # original 0.5
+  classification:
+    name: "moconv"
+    classifier_dropout: 0.1                         #0.1
+    mit:
+      mode: "moconv2_xx"              #moconv_s   tiny42(set-s)    small_tt(set-t)
+      ffn_dropout: 0.0
+      attn_dropout: 0.0
+      dropout: 0.1
+      number_heads: 4
+      no_fuse_local_global_features: false
+      conv_kernel_size: 3
+    activation:
+      name: "swish"
+    pretrained: "/home/xuwei/Project/PyTorch/Important_projects/classification/imagenet_v1/ml-cvnets-main/classification_results/train/set-n/checkpoint_ema_score_73.1800.pt"
+  normalization:
+    name: "sync_batch_norm"
+    momentum: 0.1
+  activation:
+    name: "relu"
+    inplace: false
+  layer:
+    global_pool: "mean"
+    conv_init: "kaiming_normal"
+    linear_init: "normal"
+ema:
+  enable: true
+  momentum: 0.00015
+stats:
+  val: [ "loss", "coco_map"]
+  train: ["loss"]
+  checkpoint_metric: "coco_map.bbox"
+  checkpoint_metric_max: true
+  
+  
+    - Model
+SingleShotMaskDetector(
+  (encoder): MoConv(
+    (conv_1): Conv2d(3, 16, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False, normalization=SyncBatchNorm, activation=Swish)
+    (layer_1): Sequential(
+      (0): InvertedResidual(in_channels=16, out_channels=32, stride=1, exp=2, dilation=1, skip_conn=False)
+    )
+    (layer_2): Sequential(
+      (0): InvertedResidual(in_channels=32, out_channels=48, stride=2, exp=2, dilation=1, skip_conn=False)
+      (1): InvertedResidual(in_channels=48, out_channels=48, stride=1, exp=2, dilation=1, skip_conn=True)
+      (2): InvertedResidual(in_channels=48, out_channels=48, stride=1, exp=2, dilation=1, skip_conn=True)
+    )
+    (layer_3): Sequential(
+      (0): InvertedResidual(in_channels=48, out_channels=64, stride=2, exp=4, dilation=1, skip_conn=False)
+      (1): MoConvBlock
+      (2): MoConvBlock
+      (3): MoConvBlock
+      (4): LayerNorm()
+    )
+    (layer_4): Sequential(
+      (0): InvertedResidual(in_channels=64, out_channels=80, stride=2, exp=4, dilation=1, skip_conn=False)
+      (1): MoConvBlock
+      (2): MoConvBlock
+      (3): MoConvBlock
+      (4): MoConvBlock
+      (5): LayerNorm()
+    )
+    (layer_5): Sequential(
+      (0): InvertedResidual(in_channels=80, out_channels=112, stride=2, exp=2, dilation=1, skip_conn=False)
+      (1): MoConvBlock
+      (2): MoConvBlock
+      (3): MoConvBlock
+      (4): LayerNorm()
+    )
+    (conv_1x1_exp): None
+    (classifier): None
+  )
+  (extra_layers): ModuleDict(
+    (os_64): SeparableConv2d(in_channels=112, out_channels=256, kernel_size=3, stride=2, dilation=1)
+    (os_128): SeparableConv2d(in_channels=256, out_channels=128, kernel_size=3, stride=2, dilation=1)
+    (os_256): SeparableConv2d(in_channels=128, out_channels=128, kernel_size=3, stride=2, dilation=1)
+    (os_-1): Sequential(
+      (0): AdaptiveAvgPool2d(output_size=1)
+      (1): Conv2d(128, 64, kernel_size=(1, 1), stride=(1, 1), bias=False, activation=ReLU)
+    )
+  )
+  (anchor_box_generator): SSDAnchorGenerator(min_scale_ratio=0.1, max_scale_ratio=1.05, n_output_strides=6, n_aspect_ratios=6, clipping=True)
+  (ssd_heads): ModuleList(
+    (0): SSDHead(in_channels=512, n_anchors=6, n_classes=81, n_coordinates=4, kernel_size=3, stride=1, proj=True, proj_channels=512)
+    (1): SSDHead(in_channels=256, n_anchors=6, n_classes=81, n_coordinates=4, kernel_size=3, stride=1, proj=True, proj_channels=256)
+    (2): SSDHead(in_channels=256, n_anchors=6, n_classes=81, n_coordinates=4, kernel_size=3, stride=1)
+    (3-4): 2 x SSDHead(in_channels=128, n_anchors=6, n_classes=81, n_coordinates=4, kernel_size=3, stride=1)
+    (5): SSDHead(in_channels=64, n_anchors=4, n_classes=81, n_coordinates=4, kernel_size=1, stride=1)
+  )
+)
+=================================================================
+             SingleShotMaskDetector Summary
+=================================================================
+Overall parameters   =    1.732 M
+2024-11-13 21:49:59 - LOGS    - FVCore Analysis:
+2024-11-13 21:49:59 - LOGS    - Input sizes: [1, 3, 320, 320]
+| module                                          | #parameters or shape   | #flops     |
+|:------------------------------------------------|:-----------------------|:-----------|
+| model                                           | 1.732M                 | 0.906G     |
+|  encoder                                        |  0.877M                |  0.761G    |
+|   encoder.conv_1.block                          |   0.464K               |   11.878M  |
+|    encoder.conv_1.block.conv                    |    0.432K              |    11.059M |
+|    encoder.conv_1.block.norm                    |    32                  |    0.819M  |
+|   encoder.layer_1.0.block                       |   2.016K               |   51.61M   |
+|    encoder.layer_1.0.block.exp_1x1.block        |    0.576K              |    14.746M |
+|    encoder.layer_1.0.block.conv_3x3.block       |    0.352K              |    9.011M  |
+|    encoder.layer_1.0.block.red_1x1.block        |    1.088K              |    27.853M |
+|   encoder.layer_2                               |   27.168K              |   0.216G   |
+|    encoder.layer_2.0.block                      |    6.048K              |    80.486M |
+|    encoder.layer_2.1.block                      |    10.56K              |    67.584M |
+|    encoder.layer_2.2.block                      |    10.56K              |    67.584M |
+|   encoder.layer_3                               |   0.151M               |   0.292G   |
+|    encoder.layer_3.0.block                      |    24.128K             |    84.685M |
+|    encoder.layer_3.1                            |    42.141K             |    69.231M |
+|    encoder.layer_3.2                            |    42.141K             |    69.231M |
+|    encoder.layer_3.3                            |    42.141K             |    69.231M |
+|    encoder.layer_3.4                            |    0.128K              |    0       |
+|   encoder.layer_4                               |   0.297M               |   0.141G   |
+|    encoder.layer_4.0.block                      |    40.352K             |    36.416M |
+|    encoder.layer_4.1                            |    64.189K             |    26.174M |
+|    encoder.layer_4.2                            |    64.189K             |    26.174M |
+|    encoder.layer_4.3                            |    64.189K             |    26.174M |
+|    encoder.layer_4.4                            |    64.189K             |    26.174M |
+|    encoder.layer_4.5                            |    0.16K               |    0       |
+|   encoder.layer_5                               |   0.4M                 |   48.087M  |
+|    encoder.layer_5.0.block                      |    33.024K             |    7.238M  |
+|    encoder.layer_5.1                            |    0.122M              |    13.616M |
+|    encoder.layer_5.2                            |    0.122M              |    13.616M |
+|    encoder.layer_5.3                            |    0.122M              |    13.616M |
+|    encoder.layer_5.4                            |    0.224K              |    0       |
+|  extra_layers                                   |  92.496K               |  1.164M    |
+|   extra_layers.os_64                            |   30.416K              |   0.76M    |
+|    extra_layers.os_64.dw_conv.block             |    1.232K              |    30.8K   |
+|    extra_layers.os_64.pw_conv.block             |    29.184K             |    0.73M   |
+|   extra_layers.os_128                           |   35.84K               |   0.323M   |
+|    extra_layers.os_128.dw_conv.block            |    2.816K              |    25.344K |
+|    extra_layers.os_128.pw_conv.block            |    33.024K             |    0.297M  |
+|   extra_layers.os_256                           |   18.048K              |   72.192K  |
+|    extra_layers.os_256.dw_conv.block            |    1.408K              |    5.632K  |
+|    extra_layers.os_256.pw_conv.block            |    16.64K              |    66.56K  |
+|   extra_layers.os_-1                            |   8.192K               |   8.704K   |
+|    extra_layers.os_-1.1.block.conv              |    8.192K              |    8.192K  |
+|    extra_layers.os_-1.0                         |                        |    0.512K  |
+|  ssd_heads                                      |  0.763M                |  0.144G    |
+|   ssd_heads.0                                   |   0.309M               |   0.123G   |
+|    ssd_heads.0.proj_layer.block                 |    41.984K             |    16.794M |
+|    ssd_heads.0.loc_cls_layer                    |    0.267M              |    0.107G  |
+|   ssd_heads.1                                   |   0.163M               |   16.256M  |
+|    ssd_heads.1.proj_layer.block                 |    29.184K             |    2.918M  |
+|    ssd_heads.1.loc_cls_layer                    |    0.134M              |    13.338M |
+|   ssd_heads.2.loc_cls_layer                     |   0.134M               |   3.334M   |
+|    ssd_heads.2.loc_cls_layer.dw_conv.block      |    2.816K              |    70.4K   |
+|    ssd_heads.2.loc_cls_layer.pw_conv.block.conv |    0.131M              |    3.264M  |
+|   ssd_heads.3.loc_cls_layer                     |   67.198K              |   0.6M     |
+|    ssd_heads.3.loc_cls_layer.dw_conv.block      |    1.408K              |    12.672K |
+|    ssd_heads.3.loc_cls_layer.pw_conv.block.conv |    65.79K              |    0.588M  |
+|   ssd_heads.4.loc_cls_layer                     |   67.198K              |   0.267M   |
+|    ssd_heads.4.loc_cls_layer.dw_conv.block      |    1.408K              |    5.632K  |
+|    ssd_heads.4.loc_cls_layer.pw_conv.block.conv |    65.79K              |    0.261M  |
+|   ssd_heads.5.loc_cls_layer.block.conv          |   22.1K                |   21.76K   |
+|    ssd_heads.5.loc_cls_layer.block.conv.weight  |    (340, 64, 1, 1)     |            |
+|    ssd_heads.5.loc_cls_layer.block.conv.bias    |    (340,)              |            |
+

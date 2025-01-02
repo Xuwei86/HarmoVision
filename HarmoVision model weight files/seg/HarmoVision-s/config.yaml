@@ -1,0 +1,220 @@
+taskname: '+ MoConv DeepLabv3'
+common:
+  run_label: "train"
+  accum_freq: 1
+  accum_after_epoch: -1
+  log_freq: 200
+  auto_resume: false
+  mixed_precision: true
+  grad_clip: 10.0
+dataset:
+#  root_train: "/mnt/vision_datasets/ADEChallengeData2016/"
+#  root_val: "/mnt/vision_datasets/ADEChallengeData2016/"
+#  root_train: "/home/xuwei/Project/PyTorch/Important_projects/classification/imagenet_v1/ADE20K/"
+#  root_val: "/home/xuwei/Project/PyTorch/Important_projects/classification/imagenet_v1/ADE20K/"
+  root_train: "/home/xuwei/Project/PyTorch/Important_projects/classification/imagenet_v1/ADEChallengeData2016/"
+  root_val: "/home/xuwei/Project/PyTorch/Important_projects/classification/imagenet_v1/ADEChallengeData2016/"
+  name: "ade20k"
+  category: "segmentation"
+  train_batch_size0: 8  # effective batch size is 16 ( 4 * 4 GPUs)
+  val_batch_size0: 4
+  eval_batch_size0: 1
+  workers: 4
+  persistent_workers: false
+  pin_memory: false
+image_augmentation:
+  random_crop:
+    enable: true
+    seg_class_max_ratio: 0.75
+    pad_if_needed: true
+    mask_fill: 0 # background idx is 0
+  random_horizontal_flip:
+    enable: true
+  resize:
+    enable: true
+    size: [512, 512]
+    interpolation: "bicubic"
+  random_short_size_resize:
+    enable: true
+    interpolation: "bicubic"
+    short_side_min: 256
+    short_side_max: 768
+    max_img_dim: 1024
+  photo_metric_distort:
+    enable: true
+  random_rotate:
+    enable: true
+    angle: 10
+    mask_fill: 0 # background idx is 0
+  random_gaussian_noise:
+    enable: true
+sampler:
+  name: "batch_sampler"
+  bs:
+    crop_size_width: 512
+    crop_size_height: 512
+loss:
+  category: "segmentation"
+  segmentation:
+    name: "cross_entropy"
+    cross_entropy:
+      aux_weight: 0.4
+      ignore_index: -1
+optim:
+  name: "adamw"
+  weight_decay: 1.e-4
+  no_decay_bn_filter_bias: true
+  sgd:
+    momentum: 0.9
+scheduler:
+  name: "cosine"
+  is_iteration_based: false
+  max_epochs: 120
+  cosine:
+    max_lr: 0.0009      #0.02
+    min_lr: 0.0001     #0.0002
+model:
+  segmentation:
+    name: "encoder_decoder"
+    n_classes: 150
+    lr_multiplier: 1
+    seg_head: "deeplabv3"
+    output_stride: 8
+    use_aux_head: true
+    activation:
+      name: "relu"
+    deeplabv3:
+      aspp_dropout: 0.1
+      aspp_out_channels: 512
+      aspp_rates: [ 12, 24, 36 ]
+  classification:
+    name: "moconv"   #    name: "mobilevit_v2"
+    n_classes: 1000
+    mit:
+      mode: "tiny42"
+    pretrained: "classification_results/train/set-s/checkpoint_ema_score_78.7120.pt"
+    #pretrained: "none"
+    mitv2:
+      width_multiplier: 1.0
+      attn_norm_layer: "layer_norm_2d"
+    activation:
+      name: "swish"
+  normalization:
+    name: "sync_batch_norm"
+    momentum: 0.1
+  activation:
+    name: "swish"
+    inplace: false
+  layer:
+    global_pool: "mean"
+    conv_init: "kaiming_uniform"
+    linear_init: "normal"
+ema:
+  enable: true
+  momentum: 0.00015
+stats:
+  val: [ "loss", "iou" ]
+  train: [ "loss", "grad_norm" ]
+  checkpoint_metric: "iou"
+  checkpoint_metric_max: true
+  
+  
+  SegEncoderDecoder(
+  (encoder): MoConv(
+    (conv_1): Conv2d(3, 16, kernel_size=(3, 3), stride=(2, 2), padding=(1, 1), bias=False, normalization=SyncBatchNorm, activation=Swish)
+    (layer_1): Sequential(
+      (0): InvertedResidual(in_channels=16, out_channels=32, stride=1, exp=6, dilation=1, skip_conn=False)
+    )
+    (layer_2): Sequential(
+      (0): InvertedResidual(in_channels=32, out_channels=64, stride=2, exp=6, dilation=1, skip_conn=False)
+      (1): InvertedResidual(in_channels=64, out_channels=64, stride=1, exp=6, dilation=1, skip_conn=True)
+      (2): InvertedResidual(in_channels=64, out_channels=64, stride=1, exp=6, dilation=1, skip_conn=True)
+    )
+    (layer_3): Sequential(
+      (0): InvertedResidual(in_channels=64, out_channels=128, stride=2, exp=6, dilation=1, skip_conn=False)
+      (1): MoConvBlock
+      (2): MoConvBlock
+      (3): LayerNorm()
+    )
+    (layer_4): Sequential(
+      (0): InvertedResidual(in_channels=128, out_channels=192, stride=1, exp=6, dilation=1, skip_conn=False)
+      (1): MoConvBlock
+      (2): MoConvBlock
+      (3): MoConvBlock
+      (4): MoConvBlock
+      (5): LayerNorm()
+    )
+    (layer_5): Sequential(
+      (0): InvertedResidual(in_channels=192, out_channels=256, stride=1, exp=6, dilation=2, skip_conn=False)
+      (1): MoConvBlock
+      (2): MoConvBlock
+      (3): MoConvBlock
+      (4): LayerNorm()
+    )
+    (conv_1x1_exp): None
+    (classifier): None
+  )
+  (seg_head): DeeplabV3(
+    (aux_head): Sequential(
+      (0): Conv2d(192, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False, normalization=SyncBatchNorm, activation=ReLU)
+      (1): Dropout2d(p=0.1, inplace=False)
+      (2): Conv2d(128, 150, kernel_size=(1, 1), stride=(1, 1))
+    )
+    (upsample_seg_out): UpSample(scale_factor=8.0, mode='bilinear')
+    (aspp): Sequential(
+      (aspp_layer): ASPP(in_channels=256, out_channels=512, atrous_rates=[12, 24, 36], is_aspp_sep=False, dropout=0.1)
+    )
+    (classifier): Conv2d(512, 150, kernel_size=(1, 1), stride=(1, 1))
+  )
+)
+=================================================================
+                  SegEncoderDecoder Summary
+=================================================================
+Overall parameters   =   10.022 M
+2024-11-14 18:51:04 - LOGS    - FVCore Analysis:
+2024-11-14 18:51:04 - LOGS    - Input sizes: [1, 3, 224, 224]
+| module                                    | #parameters or shape   | #flops     |
+|:------------------------------------------|:-----------------------|:-----------|
+| model                                     | 10.022M                | 8.025G     |
+|  encoder                                  |  4.586M                |  4.024G    |
+|   encoder.conv_1.block                    |   0.464K               |   5.82M    |
+|    encoder.conv_1.block.conv              |    0.432K              |    5.419M  |
+|    encoder.conv_1.block.norm              |    32                  |    0.401M  |
+|   encoder.layer_1.0.block                 |   5.92K                |   74.26M   |
+|    encoder.layer_1.0.block.exp_1x1.block  |    1.728K              |    21.676M |
+|    encoder.layer_1.0.block.conv_3x3.block |    1.056K              |    13.246M |
+|    encoder.layer_1.0.block.red_1x1.block  |    3.136K              |    39.338M |
+|   encoder.layer_2                         |   0.13M                |   0.468G   |
+|    encoder.layer_2.0.block                |    21.056K             |    0.127G  |
+|    encoder.layer_2.1.block                |    54.272K             |    0.17G   |
+|    encoder.layer_2.2.block                |    54.272K             |    0.17G   |
+|   encoder.layer_3                         |   0.401M               |   0.368G   |
+|    encoder.layer_3.0.block                |    78.976K             |    0.122G  |
+|    encoder.layer_3.1                      |    0.161M              |    0.123G  |
+|    encoder.layer_3.2                      |    0.161M              |    0.123G  |
+|    encoder.layer_3.3                      |    0.256K              |    0       |
+|   encoder.layer_4                         |   1.666M               |   1.277G   |
+|    encoder.layer_4.0.block                |    0.256M              |    0.201G  |
+|    encoder.layer_4.1                      |    0.352M              |    0.269G  |
+|    encoder.layer_4.2                      |    0.352M              |    0.269G  |
+|    encoder.layer_4.3                      |    0.352M              |    0.269G  |
+|    encoder.layer_4.4                      |    0.352M              |    0.269G  |
+|    encoder.layer_4.5                      |    0.384K              |    0       |
+|   encoder.layer_5                         |   2.383M               |   1.831G   |
+|    encoder.layer_5.0.block                |    0.532M              |    0.417G  |
+|    encoder.layer_5.1                      |    0.617M              |    0.471G  |
+|    encoder.layer_5.2                      |    0.617M              |    0.471G  |
+|    encoder.layer_5.3                      |    0.617M              |    0.471G  |
+|    encoder.layer_5.4                      |    0.512K              |    0       |
+|  seg_head                                 |  5.436M                |  4.001G    |
+|   seg_head.aux_head                       |   0.241M               |            |
+|    seg_head.aux_head.0.block              |    0.221M              |            |
+|    seg_head.aux_head.2.block.conv         |    19.35K              |            |
+|   seg_head.aspp.aspp_layer                |   5.118M               |   3.911G   |
+|    seg_head.aspp.aspp_layer.convs         |    3.806M              |    2.882G  |
+|    seg_head.aspp.aspp_layer.project.block |    1.312M              |    1.028G  |
+|   seg_head.classifier.block.conv          |   76.95K               |   60.211M  |
+|    seg_head.classifier.block.conv.weight  |    (150, 512, 1, 1)    |            |
+|    seg_head.classifier.block.conv.bias    |    (150,)              |            |
+|   seg_head.upsample_seg_out               |                        |   30.106M  |
+

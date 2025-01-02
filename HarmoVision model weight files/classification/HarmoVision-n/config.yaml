@@ -1,0 +1,248 @@
+taskname: '+ MoConv-Tiny'
+common:
+  run_label: "train"
+  log_freq: 500
+  auto_resume: true
+  mixed_precision: true
+dataset:
+  root_train: "/test/ImageNet/ILSVRC2012_img_train/" # Please update the location of training set
+  root_val: "/test/ImageNet/ILSVRC2012_img_val/" # Please update the location of validation set
+  name: "imagenet"
+  category: "classification"
+  train_batch_size0: 256 # In our experiments, we used an effective batch size of 1024 (128 images/GPU * 8 GPUs)
+  val_batch_size0: 100
+  eval_batch_size0: 100
+  workers: 8
+  persistent_workers: true
+  pin_memory: true  # original True
+image_augmentation:
+  random_resized_crop:
+    enable: true
+    interpolation: "bilinear"
+  random_horizontal_flip:
+    enable: true
+  resize:
+    enable: true
+    size: 288 # shorter size is 256
+    interpolation: "bilinear"
+  center_crop:
+    enable: true
+    size: 256
+sampler:
+  name: "variable_batch_sampler"
+  vbs:
+    crop_size_width: 256
+    crop_size_height: 256
+    max_n_scales: 5
+    min_crop_size_width: 160
+    max_crop_size_width: 320
+    min_crop_size_height: 160
+    max_crop_size_height: 320
+    check_scale: 32
+loss:
+  category: "classification"
+  classification:
+    name: "cross_entropy"
+    cross_entropy:
+      label_smoothing: 0.1
+optim:
+  name: "adamw"
+  weight_decay: 0.0005
+  no_decay_bn_filter_bias: false
+  adamw:
+    beta1: 0.9
+    beta2: 0.999
+scheduler:
+  name: "cosine"
+  is_iteration_based: false
+  max_epochs: 300
+  warmup_iterations: 20000 # longer warm-up
+  warmup_init_lr: 0.0002
+  cosine:
+    max_lr: 0.0015    #original 0.002    (bs 128 -->0.001)
+    min_lr: 0.000125     #original 0.0002
+model:
+  classification:
+    name: "moconv"
+    classifier_dropout: 0.1
+    mit:
+      mode: "moconv2_xx"    #moconv2_xx  small_tt  moconv2_xx
+#      mode: "xx_small"
+      ffn_dropout: 0.0
+      attn_dropout: 0.0
+      dropout: 0.0
+      number_heads: 4
+      no_fuse_local_global_features: false
+      conv_kernel_size: 3
+    activation:
+      name: "swish"
+  normalization:
+    name: "batch_norm"
+    momentum: 0.1   #original 0.1
+  activation:
+    name: "swish"
+  layer:
+    global_pool: "mean"
+    conv_init: "kaiming_normal"
+    linear_init: "trunc_normal"
+    linear_init_std_dev: 0.02
+ema:
+  enable: true
+  momentum: 0.00015 #original 0.0005
+stats:
+  val: [ "loss", "top1", "top5" ]
+  train: ["loss"]
+  checkpoint_metric: "top1"
+  checkpoint_metric_max: true
+  
+  
+  
+  Overall parameters   =    1.354 M
+2024-10-22 22:49:01 - LOGS    - FVCore Analysis:
+2024-10-22 22:49:01 - LOGS    - Input sizes: [1, 3, 224, 224]
+| module                                 | #parameters or shape   | #flops     |
+|:---------------------------------------|:-----------------------|:-----------|
+| model                                  | 1.354M                 | 0.371G     |
+|  conv_1.block                          |  0.464K                |  5.82M     |
+|   conv_1.block.conv                    |   0.432K               |   5.419M   |
+|    conv_1.block.conv.weight            |    (16, 3, 3, 3)       |            |
+|   conv_1.block.norm                    |   32                   |   0.401M   |
+|    conv_1.block.norm.weight            |    (16,)               |            |
+|    conv_1.block.norm.bias              |    (16,)               |            |
+|  layer_1.0.block                       |  2.016K                |  25.289M   |
+|   layer_1.0.block.exp_1x1.block        |   0.576K               |   7.225M   |
+|    layer_1.0.block.exp_1x1.block.conv  |    0.512K              |    6.423M  |
+|    layer_1.0.block.exp_1x1.block.norm  |    64                  |    0.803M  |
+|   layer_1.0.block.conv_3x3.block       |   0.352K               |   4.415M   |
+|    layer_1.0.block.conv_3x3.block.conv |    0.288K              |    3.613M  |
+|    layer_1.0.block.conv_3x3.block.norm |    64                  |    0.803M  |
+|   layer_1.0.block.red_1x1.block        |   1.088K               |   13.648M  |
+|    layer_1.0.block.red_1x1.block.conv  |    1.024K              |    12.845M |
+|    layer_1.0.block.red_1x1.block.norm  |    64                  |    0.803M  |
+|  layer_2                               |  27.168K               |  0.106G    |
+|   layer_2.0.block                      |   6.048K               |   39.438M  |
+|    layer_2.0.block.exp_1x1.block       |    2.176K              |    27.296M |
+|    layer_2.0.block.conv_3x3.block      |    0.704K              |    2.208M  |
+|    layer_2.0.block.red_1x1.block       |    3.168K              |    9.935M  |
+|   layer_2.1.block                      |   10.56K               |   33.116M  |
+|    layer_2.1.block.exp_1x1.block       |    4.8K                |    15.053M |
+|    layer_2.1.block.conv_3x3.block      |    1.056K              |    3.312M  |
+|    layer_2.1.block.red_1x1.block       |    4.704K              |    14.752M |
+|   layer_2.2.block                      |   10.56K               |   33.116M  |
+|    layer_2.2.block.exp_1x1.block       |    4.8K                |    15.053M |
+|    layer_2.2.block.conv_3x3.block      |    1.056K              |    3.312M  |
+|    layer_2.2.block.red_1x1.block       |    4.704K              |    14.752M |
+|  layer_3                               |  0.147M                |  0.142G    |
+|   layer_3.0.block                      |   24.128K              |   41.496M  |
+|    layer_3.0.block.exp_1x1.block       |    9.6K                |    30.106M |
+|    layer_3.0.block.conv_3x3.block      |    2.112K              |    1.656M  |
+|    layer_3.0.block.red_1x1.block       |    12.416K             |    9.734M  |
+|   layer_3.1                            |   40.765K              |   33.438M  |
+|    layer_3.1.norm1                     |    0.128K              |    0       |
+|    layer_3.1.attn0                     |    3.136K              |    4.917M  |
+|    layer_3.1.attn1                     |    0.856K              |    79.744K |
+|    layer_3.1.sa                        |    0.288K              |    16.128K |
+|    layer_3.1.ca                        |    5                   |    25.248K |
+|    layer_3.1.norm2                     |    0.128K              |    0       |
+|    layer_3.1.irmb.block                |    36.224K             |    28.4M   |
+|   layer_3.2                            |   40.765K              |   33.438M  |
+|    layer_3.2.norm1                     |    0.128K              |    0       |
+|    layer_3.2.attn0                     |    3.136K              |    4.917M  |
+|    layer_3.2.attn1                     |    0.856K              |    79.744K |
+|    layer_3.2.sa                        |    0.288K              |    16.128K |
+|    layer_3.2.ca                        |    5                   |    25.248K |
+|    layer_3.2.norm2                     |    0.128K              |    0       |
+|    layer_3.2.irmb.block                |    36.224K             |    28.4M   |
+|   layer_3.3                            |   40.765K              |   33.438M  |
+|    layer_3.3.norm1                     |    0.128K              |    0       |
+|    layer_3.3.attn0                     |    3.136K              |    4.917M  |
+|    layer_3.3.attn1                     |    0.856K              |    79.744K |
+|    layer_3.3.sa                        |    0.288K              |    16.128K |
+|    layer_3.3.ca                        |    5                   |    25.248K |
+|    layer_3.3.norm2                     |    0.128K              |    0       |
+|    layer_3.3.irmb.block                |    36.224K             |    28.4M   |
+|   layer_3.4                            |   0.128K               |   0        |
+|    layer_3.4.weight                    |    (64,)               |            |
+|    layer_3.4.bias                      |    (64,)               |            |
+|  layer_4                               |  0.289M                |  68.479M   |
+|   layer_4.0.block                      |   40.352K              |   17.844M  |
+|    layer_4.0.block.exp_1x1.block       |    16.896K             |    13.246M |
+|    layer_4.0.block.conv_3x3.block      |    2.816K              |    0.552M  |
+|    layer_4.0.block.red_1x1.block       |    20.64K              |    4.045M  |
+|   layer_4.1                            |   62.149K              |   12.659M  |
+|    layer_4.1.norm1                     |    0.16K               |    0       |
+|    layer_4.1.attn0                     |    4.88K               |    1.725M  |
+|    layer_4.1.attn1                     |    1.064K              |    34.048K |
+|    layer_4.1.sa                        |    0.36K               |    10.08K  |
+|    layer_4.1.ca                        |    5                   |    8.04K   |
+|    layer_4.1.norm2                     |    0.16K               |    0       |
+|    layer_4.1.irmb.block                |    55.52K              |    10.882M |
+|   layer_4.2                            |   62.149K              |   12.659M  |
+|    layer_4.2.norm1                     |    0.16K               |    0       |
+|    layer_4.2.attn0                     |    4.88K               |    1.725M  |
+|    layer_4.2.attn1                     |    1.064K              |    34.048K |
+|    layer_4.2.sa                        |    0.36K               |    10.08K  |
+|    layer_4.2.ca                        |    5                   |    8.04K   |
+|    layer_4.2.norm2                     |    0.16K               |    0       |
+|    layer_4.2.irmb.block                |    55.52K              |    10.882M |
+|   layer_4.3                            |   62.149K              |   12.659M  |
+|    layer_4.3.norm1                     |    0.16K               |    0       |
+|    layer_4.3.attn0                     |    4.88K               |    1.725M  |
+|    layer_4.3.attn1                     |    1.064K              |    34.048K |
+|    layer_4.3.sa                        |    0.36K               |    10.08K  |
+|    layer_4.3.ca                        |    5                   |    8.04K   |
+|    layer_4.3.norm2                     |    0.16K               |    0       |
+|    layer_4.3.irmb.block                |    55.52K              |    10.882M |
+|   layer_4.4                            |   62.149K              |   12.659M  |
+|    layer_4.4.norm1                     |    0.16K               |    0       |
+|    layer_4.4.attn0                     |    4.88K               |    1.725M  |
+|    layer_4.4.attn1                     |    1.064K              |    34.048K |
+|    layer_4.4.sa                        |    0.36K               |    10.08K  |
+|    layer_4.4.ca                        |    5                   |    8.04K   |
+|    layer_4.4.norm2                     |    0.16K               |    0       |
+|    layer_4.4.irmb.block                |    55.52K              |    10.882M |
+|   layer_4.5                            |   0.16K                |   0        |
+|    layer_4.5.weight                    |    (80,)               |            |
+|    layer_4.5.bias                      |    (80,)               |            |
+|  layer_5                               |  0.388M                |  21.479M   |
+|   layer_5.0.block                      |   33.024K              |   3.547M   |
+|    layer_5.0.block.exp_1x1.block       |    13.12K              |    2.572M  |
+|    layer_5.0.block.conv_3x3.block      |    1.76K               |    86.24K  |
+|    layer_5.0.block.red_1x1.block       |    18.144K             |    0.889M  |
+|   layer_5.1                            |   0.118M               |   5.977M   |
+|    layer_5.1.norm1                     |    0.224K              |    0       |
+|    layer_5.1.attn0                     |    9.52K               |    0.735M  |
+|    layer_5.1.attn1                     |    1.48K               |    18.256K |
+|    layer_5.1.sa                        |    0.504K              |    7.056K  |
+|    layer_5.1.ca                        |    5                   |    3.024K  |
+|    layer_5.1.norm2                     |    0.224K              |    0       |
+|    layer_5.1.irmb.block                |    0.106M              |    5.214M  |
+|   layer_5.2                            |   0.118M               |   5.977M   |
+|    layer_5.2.norm1                     |    0.224K              |    0       |
+|    layer_5.2.attn0                     |    9.52K               |    0.735M  |
+|    layer_5.2.attn1                     |    1.48K               |    18.256K |
+|    layer_5.2.sa                        |    0.504K              |    7.056K  |
+|    layer_5.2.ca                        |    5                   |    3.024K  |
+|    layer_5.2.norm2                     |    0.224K              |    0       |
+|    layer_5.2.irmb.block                |    0.106M              |    5.214M  |
+|   layer_5.3                            |   0.118M               |   5.977M   |
+|    layer_5.3.norm1                     |    0.224K              |    0       |
+|    layer_5.3.attn0                     |    9.52K               |    0.735M  |
+|    layer_5.3.attn1                     |    1.48K               |    18.256K |
+|    layer_5.3.sa                        |    0.504K              |    7.056K  |
+|    layer_5.3.ca                        |    5                   |    3.024K  |
+|    layer_5.3.norm2                     |    0.224K              |    0       |
+|    layer_5.3.irmb.block                |    0.106M              |    5.214M  |
+|   layer_5.4                            |   0.224K               |   0        |
+|    layer_5.4.weight                    |    (112,)              |            |
+|    layer_5.4.bias                      |    (112,)              |            |
+|  conv_1x1_exp.block                    |  51.072K               |  2.503M    |
+|   conv_1x1_exp.block.conv              |   50.176K              |   2.459M   |
+|    conv_1x1_exp.block.conv.weight      |    (448, 112, 1, 1)    |            |
+|   conv_1x1_exp.block.norm              |   0.896K               |   43.904K  |
+|    conv_1x1_exp.block.norm.weight      |    (448,)              |            |
+|    conv_1x1_exp.block.norm.bias        |    (448,)              |            |
+|  classifier.fc                         |  0.449M                |  0.448M    |
+|   classifier.fc.weight                 |   (1000, 448)          |            |
+|   classifier.fc.bias                   |   (1000,)              |            |
+
