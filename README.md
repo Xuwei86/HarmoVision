@@ -30,29 +30,3 @@ python train.py --config configs/imagenet_harmovision_s.yaml --dataset imagenet 
 
 3. **Installation**: Includes clear instructions for setting up the environment, leveraging the CVNets framework (referenced in your manuscript) and standard dependencies for PyTorch-based projects.
 
-4. **Usage**: Provides example commands for training, evaluation, and ablation studies, assuming standard script names (`train.py`, `evaluate.py`, `ablation.py`) and a `configs/` directory, as these are typical for ML projects. You can update these if your repository uses different script names or structures.
-
-5. **Experimental Results**: Summarizes key results from Tables \ref{tab7}–\ref{tab12} in a concise, reader-friendly format to showcase HarmoVision’s performance. Visualizations like figures are referenced but not included directly in the README, as is standard for GitHub.
-
-6. **Project Structure**: Describes the assumed directory structure based on typical ML project conventions. You should update this section to match the actual structure of your repository.
-
-7. **Contributing**: Follows GitHub conventions for encouraging contributions, with clear steps for forking, branching, and submitting pull requests.
-
-8. **License and Citation**: Assumes an MIT License (common for open-source projects) and includes a BibTeX entry for citing your work, with a placeholder for the journal name (update as needed).
-
-### Notes for Customization
-- **Repository Structure**: Since I couldn’t access the actual repository content, I assumed a standard ML project structure (e.g., `configs/`, `models/`, `train.py`). Please update the **Project Structure** section and script names in the **Usage** section to match your actual repository.
-- **Contact Information**: Replace `[your email or preferred contact method]` with your preferred contact details.
-- **License**: I assumed an MIT License, but you should specify the actual license used in your repository.
-- **Manuscript**: The README assumes the manuscript is included in a `docs/` directory. If it’s hosted elsewhere (e.g., arXiv), update the reference to point to the correct location.
-- **Additional Details**: If your repository includes specific features (e.g., pretrained model weights, demo scripts, or visualizations), add these to the **Key Features** or **Usage** sections.
-
-### Instructions for Adding the README
-1. Create a file named `README.md` in the root of your repository (`HarmoVision/`).
-2. Copy the above Markdown content into `README.md`.
-3. Update placeholders (e.g., contact info, journal name, script names, directory structure) to reflect your project’s specifics.
-4. Commit and push the file to your repository:
-   ```bash
-   git add README.md
-   git commit -m "Add README file"
-   git push origin main
